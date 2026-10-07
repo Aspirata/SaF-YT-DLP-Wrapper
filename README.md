@@ -113,18 +113,11 @@ Do not run two copies from the same folder at the same time. They share `config.
 
 ## Development
 
-Windows tests:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1
-```
-
-Linux/macOS tests:
-
-```bash
-bash -n SaF-YTDLP.sh tests/FakeYtdlp.sh tests/FakeFfmpeg.sh tests/run-bash-tests.sh
-bash tests/run-bash-tests.sh
-```
+GitHub Actions performs one live end-to-end download on Windows, Ubuntu, and
+macOS, using both x64 and ARM64 runners. Each job downloads the reference video
+with the matching launcher, verifies the completed file and temporary cleanup,
+and publishes an FFprobe media report in the job summary. Every job has a
+five-minute timeout.
 
 Build clean release archives without reading or changing the working `config.ini`:
 

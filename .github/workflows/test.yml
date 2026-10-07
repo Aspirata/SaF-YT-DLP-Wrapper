@@ -1,22 +1,47 @@
-name: test
+name: live download
 
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File tests/run-tests.ps1
-
-  unix:
+  download:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 5
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+        include:
+          - name: Windows x64
+            runner: windows-2025
+            architecture: x64
+          - name: Windows ARM64
+            runner: windows-11-arm
+            architecture: arm64
+          - name: Ubuntu x64
+            runner: ubuntu-24.04
+            architecture: x64
+          - name: Ubuntu ARM64
+            runner: ubuntu-24.04-arm
+            architecture: arm64
+          - name: macOS x64
+            runner: macos-15-intel
+            architecture: x64
+          - name: macOS ARM64
+            runner: macos-15
+            architecture: arm64
+    env:
+      SAF_SMOKE_URL: "https://youtu.be/dQw4w9WgXcQ?si=ayDICO5pl8KRm5IM"
+      SAF_EXPECTED_ARCH: ${{ matrix.architecture }}
     steps:
       - uses: actions/checkout@v4
-      - run: bash -n SaF-YTDLP.sh tests/FakeYtdlp.sh tests/FakeFfmpeg.sh tests/run-bash-tests.sh
-      - run: bash tests/run-bash-tests.sh
+      - name: Download and inspect video
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: .github/scripts/live-download.ps1
+      - name: Download and inspect video
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash .github/scripts/live-download.sh
