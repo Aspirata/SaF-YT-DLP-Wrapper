@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-set -u
-
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 internal_dir=$script_dir/internal
 dependencies_dir=$internal_dir/dependencies
@@ -191,7 +189,7 @@ validate_ffmpeg_pair() {
     encoders=$("$ffmpeg_new" -hide_banner -encoders 2>&1) || return 1
     case $encoders in *libx264*) ;; *) return 1 ;; esac
     case $encoders in *libx265*) ;; *) return 1 ;; esac
-    case $encoders in *libsvtav1*) ;; *) return 1 ;; esac
+    case $encoders in *libsvtav1*|*libaom-av1*) ;; *) return 1 ;; esac
 }
 
 install_ytdlp() {
@@ -877,12 +875,19 @@ probe_hardware_encoder() {
 }
 
 choose_encoder() {
-    local target=$1 encoder
+    local target=$1 encoder encoders
     local -a candidates=()
     USING_HARDWARE=NO
     case $target in
         NONE) SOFTWARE_ENCODER=copy ;;
-        AV1) SOFTWARE_ENCODER=libsvtav1 ;;
+        AV1)
+            encoders=$("$ffmpeg" -hide_banner -encoders 2>&1) || return 1
+            case $encoders in
+                *libsvtav1*) SOFTWARE_ENCODER=libsvtav1 ;;
+                *libaom-av1*) SOFTWARE_ENCODER=libaom-av1 ;;
+                *) return 1 ;;
+            esac
+            ;;
         H265) SOFTWARE_ENCODER=libx265 ;;
         H264) SOFTWARE_ENCODER=libx264 ;;
     esac
@@ -929,6 +934,7 @@ set_video_arguments() {
     METADATA_ARGS=(-metadata:s:v:0 "handler_name=Transcoded from $SOURCE_CODEC by SaF yt-dlp Wrapper")
     case $encoder in
         libsvtav1) VIDEO_ARGS=(-c:v libsvtav1 -preset 6 -b:v "${ENCODE_VIDEO_BITRATE}k") ;;
+        libaom-av1) VIDEO_ARGS=(-c:v libaom-av1 -cpu-used 6 -b:v "${ENCODE_VIDEO_BITRATE}k") ;;
         libx265) VIDEO_ARGS=(-c:v libx265 -preset medium -b:v "${ENCODE_VIDEO_BITRATE}k" -maxrate "${ENCODE_MAX_BITRATE}k" -bufsize "${ENCODE_BUFFER_SIZE}k" -tag:v hvc1) ;;
         libx264) VIDEO_ARGS=(-c:v libx264 -preset medium -b:v "${ENCODE_VIDEO_BITRATE}k" -maxrate "${ENCODE_MAX_BITRATE}k" -bufsize "${ENCODE_BUFFER_SIZE}k" -pix_fmt yuv420p) ;;
         av1_nvenc) VIDEO_ARGS=(-c:v av1_nvenc -preset p6 -tune hq -rc vbr -b:v "${ENCODE_VIDEO_BITRATE}k" -maxrate "${ENCODE_MAX_BITRATE}k" -bufsize "${ENCODE_BUFFER_SIZE}k" -spatial-aq 1 -temporal-aq 1 -rc-lookahead 32) ;;

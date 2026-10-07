@@ -1085,7 +1085,7 @@ if errorlevel 1 (
 
 set "SAF_ARCHIVE=%SAF_DOWNLOAD_FILE%"
 set "SAF_EXTRACT_DIR=%JOB_SETUP%\deno-unpack"
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Expand-Archive -LiteralPath $env:SAF_ARCHIVE -DestinationPath $env:SAF_EXTRACT_DIR -Force; $deno=Get-ChildItem -LiteralPath $env:SAF_EXTRACT_DIR -Filter deno.exe -File -Recurse|Select-Object -First 1; if(-not $deno){throw 'deno.exe not found in archive'}; Copy-Item -LiteralPath $deno.FullName -Destination $env:DENO_NEW -Force"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory($env:SAF_ARCHIVE,$env:SAF_EXTRACT_DIR); $deno=Get-ChildItem -LiteralPath $env:SAF_EXTRACT_DIR -Filter deno.exe -File -Recurse|Select-Object -First 1; if(-not $deno){throw 'deno.exe not found in archive'}; Copy-Item -LiteralPath $deno.FullName -Destination $env:DENO_NEW -Force"
 if errorlevel 1 (
     del /q "%DENO_NEW%" >nul 2>&1
     call :cleanup_setup_job
@@ -1119,7 +1119,7 @@ if errorlevel 1 (
 
 set "SAF_ARCHIVE=%SAF_DOWNLOAD_FILE%"
 set "SAF_EXTRACT_DIR=%JOB_SETUP%\ffmpeg-unpack"
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Expand-Archive -LiteralPath $env:SAF_ARCHIVE -DestinationPath $env:SAF_EXTRACT_DIR -Force; $ffmpeg=Get-ChildItem -LiteralPath $env:SAF_EXTRACT_DIR -Filter ffmpeg.exe -File -Recurse|Select-Object -First 1; $ffprobe=Get-ChildItem -LiteralPath $env:SAF_EXTRACT_DIR -Filter ffprobe.exe -File -Recurse|Select-Object -First 1; if(-not $ffmpeg -or -not $ffprobe){throw 'FFmpeg executables not found in archive'}; Copy-Item -LiteralPath $ffmpeg.FullName -Destination $env:FFMPEG_NEW -Force; Copy-Item -LiteralPath $ffprobe.FullName -Destination $env:FFPROBE_NEW -Force"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory($env:SAF_ARCHIVE,$env:SAF_EXTRACT_DIR); $ffmpeg=Get-ChildItem -LiteralPath $env:SAF_EXTRACT_DIR -Filter ffmpeg.exe -File -Recurse|Select-Object -First 1; $ffprobe=Get-ChildItem -LiteralPath $env:SAF_EXTRACT_DIR -Filter ffprobe.exe -File -Recurse|Select-Object -First 1; if(-not $ffmpeg -or -not $ffprobe){throw 'FFmpeg executables not found in archive'}; Copy-Item -LiteralPath $ffmpeg.FullName -Destination $env:FFMPEG_NEW -Force; Copy-Item -LiteralPath $ffprobe.FullName -Destination $env:FFPROBE_NEW -Force"
 if errorlevel 1 (
     del /q "%FFMPEG_NEW%" "%FFPROBE_NEW%" >nul 2>&1
     call :cleanup_setup_job
