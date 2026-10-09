@@ -125,7 +125,7 @@ Build clean release archives without reading or changing the working `config.ini
 build-release.cmd
 ```
 
-The release builder requires the system `tar.exe` included with Windows 10/11 and GNU tar from Git for Windows so the Unix launcher keeps its executable permission. Set `SAF_GNU_TAR` to use another GNU tar installation.
+The release builder uses only `tar.exe` and Windows PowerShell included with Windows 10/11. Git and a separate GNU tar installation are not required.
 
 Code by ChatGPT 5.6 Sol (High). Project management by the project author.
 

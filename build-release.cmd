@@ -15,14 +15,8 @@ if "%~2"=="" (
 
 set "SYSTEM_TAR=%SystemRoot%\System32\tar.exe"
 set "CERTUTIL=%SystemRoot%\System32\certutil.exe"
-set "GNU_TAR=%~3"
-if not defined GNU_TAR if defined SAF_GNU_TAR set "GNU_TAR=%SAF_GNU_TAR%"
-
-if defined GNU_TAR (
-    call :ValidateGnuTar "%GNU_TAR%"
-) else (
-    call :FindGnuTar
-)
+set "POWERSHELL=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+set "UNIX_ARCHIVE_BUILDER=%~dp0build-unix-release.ps1"
 
 if not exist "%SYSTEM_TAR%" (
     set "ERROR_MESSAGE=The Windows system tar.exe is required to create the ZIP archive."
@@ -32,8 +26,12 @@ if not exist "%CERTUTIL%" (
     set "ERROR_MESSAGE=The Windows system certutil.exe is required to create the Unix release configuration."
     goto :Failure
 )
-if not defined GNU_TAR (
-    set "ERROR_MESSAGE=GNU tar is required to preserve the executable permission in the Unix release. Install Git for Windows or set SAF_GNU_TAR."
+if not exist "%POWERSHELL%" (
+    set "ERROR_MESSAGE=Windows PowerShell is required to create the Unix release archive."
+    goto :Failure
+)
+if not exist "%UNIX_ARCHIVE_BUILDER%" (
+    set "ERROR_MESSAGE=Required release builder is missing: build-unix-release.ps1"
     goto :Failure
 )
 
@@ -62,8 +60,8 @@ if errorlevel 1 (
     set "ERROR_MESSAGE=Could not create the temporary Unix staging directory."
     goto :Failure
 )
-md "%OUTPUT_DIRECTORY%" >nul 2>&1
-if errorlevel 1 (
+if not exist "%OUTPUT_DIRECTORY%" md "%OUTPUT_DIRECTORY%" >nul 2>&1
+if not exist "%OUTPUT_DIRECTORY%" (
     set "ERROR_MESSAGE=Could not create the release output directory."
     goto :Failure
 )
@@ -76,7 +74,7 @@ for %%F in (README.md LICENSE) do (
 )
 copy /y "%SOURCE_ROOT%\SaF-YTDLP.cmd" "%WINDOWS_STAGE%\SaF-YTDLP.cmd" >nul
 if errorlevel 1 goto :CopyFailure
-copy /y "%SOURCE_ROOT%\SaF-YTDLP.sh" "%UNIX_STAGE%\SaF-YTDLP.sh.exe" >nul
+copy /y "%SOURCE_ROOT%\SaF-YTDLP.sh" "%UNIX_STAGE%\SaF-YTDLP.sh" >nul
 if errorlevel 1 goto :CopyFailure
 
 >"%WINDOWS_STAGE%\config.ini" (
@@ -86,7 +84,7 @@ if errorlevel 1 goto :CopyFailure
     echo TRANSCODE_VP9_TO_AV1=YES
     echo ALLOW_HARDWARE_TRANSCODING=YES
     echo STORE_OPUS_IN_MP4=YES
-    echo DOWNLOAD_ALL_AUDIO_TRACKS=NO
+    echo DOWNLOAD_ALL_AUDIO_TRACKS=YES
     echo COOKIE_BROWSER=
 )
 if errorlevel 1 (
@@ -117,10 +115,9 @@ if errorlevel 1 (
     goto :Failure
 )
 
-"%GNU_TAR%" -czf "%UNIX_ARCHIVE%" -C "%UNIX_STAGE%" "--transform=s/\.exe$//" "--mode=a=rX,u+w" SaF-YTDLP.sh.exe config.ini README.md LICENSE
+"%POWERSHELL%" -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%UNIX_ARCHIVE_BUILDER%" -SourceDirectory "%UNIX_STAGE%" -OutputPath "%UNIX_ARCHIVE%"
 if errorlevel 1 (
-    set "ERROR_MESSAGE=Could not create the Unix release archive."
-    goto :Failure
+    goto :UnixArchiveFailure
 )
 
 echo Created %WINDOWS_ARCHIVE%
@@ -132,6 +129,10 @@ exit /b 0
 set "ERROR_MESSAGE=Could not copy a required release file."
 goto :Failure
 
+:UnixArchiveFailure
+set "ERROR_MESSAGE=Could not create the Unix release archive."
+goto :Failure
+
 :Failure
 >&2 echo Error: %ERROR_MESSAGE%
 call :Cleanup
@@ -139,31 +140,4 @@ exit /b 1
 
 :Cleanup
 if defined STAGING if exist "%STAGING%" rd /s /q "%STAGING%" >nul 2>&1
-exit /b 0
-
-:ValidateGnuTar
-set "GNU_TAR_CANDIDATE=%~f1"
-if not exist "%GNU_TAR_CANDIDATE%" (
-    set "GNU_TAR="
-    exit /b 1
-)
-"%GNU_TAR_CANDIDATE%" --help 2>&1 | "%SystemRoot%\System32\findstr.exe" /c:"--mode=CHANGES" >nul
-if errorlevel 1 (
-    set "GNU_TAR="
-    exit /b 1
-)
-set "GNU_TAR=%GNU_TAR_CANDIDATE%"
-exit /b 0
-
-:FindGnuTar
-call :ValidateGnuTar "%ProgramFiles%\Git\usr\bin\tar.exe"
-if defined GNU_TAR exit /b 0
-if defined ProgramFiles(x86) call :ValidateGnuTar "%ProgramFiles(x86)%\Git\usr\bin\tar.exe"
-if defined GNU_TAR exit /b 0
-for /f "delims=" %%G in ('where git.exe 2^>nul') do call :TryGitDirectory "%%~fG"
-exit /b 0
-
-:TryGitDirectory
-if defined GNU_TAR exit /b 0
-for %%R in ("%~dp1..") do call :ValidateGnuTar "%%~fR\usr\bin\tar.exe"
 exit /b 0
