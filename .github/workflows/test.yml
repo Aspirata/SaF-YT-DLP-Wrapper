@@ -79,7 +79,7 @@ jobs:
         shell: cmd
         run: build-release.cmd
       - name: Publish GitHub release
-        shell: powershell
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
