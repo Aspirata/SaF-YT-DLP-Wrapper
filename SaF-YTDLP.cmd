@@ -920,6 +920,7 @@ exit /b %~1
 :select_windows_dependencies
 set "WINDOWS_ARCH=%PROCESSOR_ARCHITECTURE%"
 if defined PROCESSOR_ARCHITEW6432 set "WINDOWS_ARCH=%PROCESSOR_ARCHITEW6432%"
+if not "%~1"=="" set "WINDOWS_ARCH=%~1"
 set "PLATFORM_ID="
 set "YTDLP_ASSET="
 set "DENO_ASSET="
@@ -1163,7 +1164,7 @@ set "INTERNAL_RESULT=%errorlevel%"
 endlocal & exit /b %INTERNAL_RESULT%
 
 :internal_dependency_map
-call :select_windows_dependencies || exit /b 1
+call :select_windows_dependencies "%~2" || exit /b 1
 echo PLATFORM=%PLATFORM_ID%
 echo YTDLP_URL=%YTDLP_URL%
 echo DENO_URL=%DENO_URL%

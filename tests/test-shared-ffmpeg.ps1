@@ -20,25 +20,10 @@ function Get-WindowsDependencyMap {
         [string]$Architecture
     )
 
-    $previousArchitecture = $env:PROCESSOR_ARCHITECTURE
-    $previousWowArchitecture = $env:PROCESSOR_ARCHITEW6432
-    try {
-        $env:PROCESSOR_ARCHITECTURE = $Architecture
-        Remove-Item Env:PROCESSOR_ARCHITEW6432 -ErrorAction SilentlyContinue
-        $commandLine = 'call "{0}" --internal-dependency-map' -f $windowsLauncher
-        $output = @(& $env:ComSpec /d /c $commandLine)
-        Assert-True ($LASTEXITCODE -eq 0) "Windows dependency map failed for $Architecture."
-        return $output -join "`n"
-    }
-    finally {
-        $env:PROCESSOR_ARCHITECTURE = $previousArchitecture
-        if ($null -eq $previousWowArchitecture) {
-            Remove-Item Env:PROCESSOR_ARCHITEW6432 -ErrorAction SilentlyContinue
-        }
-        else {
-            $env:PROCESSOR_ARCHITEW6432 = $previousWowArchitecture
-        }
-    }
+    $commandLine = 'call "{0}" --internal-dependency-map {1}' -f $windowsLauncher, $Architecture
+    $output = @(& $env:ComSpec /d /c $commandLine)
+    Assert-True ($LASTEXITCODE -eq 0) "Windows dependency map failed for $Architecture."
+    return $output -join "`n"
 }
 
 $repositoryRoot = Split-Path $PSScriptRoot -Parent
@@ -46,6 +31,13 @@ $windowsLauncher = Join-Path $repositoryRoot 'SaF-YTDLP.cmd'
 
 $windowsX64 = Get-WindowsDependencyMap -Architecture 'AMD64'
 $windowsArm64 = Get-WindowsDependencyMap -Architecture 'ARM64'
+
+if ($env:SAF_EXPECTED_ARCH) {
+    $commandLine = 'call "{0}" --internal-dependency-map' -f $windowsLauncher
+    $nativeMap = @(& $env:ComSpec /d /c $commandLine) -join "`n"
+    Assert-True ($LASTEXITCODE -eq 0) 'Windows native dependency map failed.'
+    Assert-True ($nativeMap -match "(?m)^PLATFORM=windows-$($env:SAF_EXPECTED_ARCH)$") 'Windows native dependency map selected the wrong runner architecture.'
+}
 
 Assert-True (
     $windowsX64 -match [regex]::Escape('FFMPEG_URL=https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip')
