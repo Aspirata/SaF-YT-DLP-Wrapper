@@ -1,9 +1,12 @@
-name: live download
+name: CI Test
 
 on:
   push:
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   download:
@@ -37,6 +40,14 @@ jobs:
       SAF_EXPECTED_ARCH: ${{ matrix.architecture }}
     steps:
       - uses: actions/checkout@v4
+      - name: Verify FFmpeg dependency selection
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: tests/test-shared-ffmpeg.ps1
+      - name: Verify FFmpeg dependency selection
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash tests/test-shared-ffmpeg.sh
       - name: Download and inspect video
         if: runner.os == 'Windows'
         shell: powershell
@@ -45,3 +56,97 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: bash .github/scripts/live-download.sh
+
+  release:
+    name: Release
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/Main' }}
+    needs: download
+    runs-on: windows-2025
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify release builder
+        shell: powershell
+        run: tests/test-build-release.ps1
+      - name: Build release archives
+        shell: cmd
+        run: build-release.cmd
+      - name: Publish GitHub release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          $tag = "main-$shortSha"
+          $title = [DateTime]::UtcNow.ToString(
+              "dd-MM-yyyy HH:mm 'UTC'",
+              [Globalization.CultureInfo]::InvariantCulture
+          ) + " — $shortSha"
+          $assets = @(
+              'dist/SaF-yt-dlp-Wrapper-Windows.zip'
+              'dist/SaF-yt-dlp-Wrapper-Unix.tar.gz'
+          )
+
+          $releaseJson = gh release view $tag `
+              --repo $env:GITHUB_REPOSITORY `
+              --json 'isDraft,isImmutable,url' 2>$null
+
+          if ($LASTEXITCODE -eq 0) {
+              $release = $releaseJson | ConvertFrom-Json
+
+              if (-not $release.isImmutable) {
+                  gh release upload $tag @assets `
+                      --repo $env:GITHUB_REPOSITORY `
+                      --clobber
+                  if ($LASTEXITCODE -ne 0) {
+                      throw "Could not update assets for release $tag."
+                  }
+              }
+
+              $editArguments = @(
+                  'release'
+                  'edit'
+                  $tag
+                  '--repo'
+                  $env:GITHUB_REPOSITORY
+                  '--title'
+                  $title
+                  '--latest'
+              )
+              if ($release.isDraft) {
+                  $editArguments += '--draft=false'
+              }
+
+              gh @editArguments
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Could not update release $tag."
+              }
+          }
+          else {
+              gh release create $tag @assets `
+                  --repo $env:GITHUB_REPOSITORY `
+                  --target $env:GITHUB_SHA `
+                  --title $title `
+                  --generate-notes `
+                  --latest
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Could not create release $tag."
+              }
+
+              $releaseJson = gh release view $tag `
+                  --repo $env:GITHUB_REPOSITORY `
+                  --json url
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Release $tag was created but could not be read back."
+              }
+              $release = $releaseJson | ConvertFrom-Json
+          }
+
+          "### Release [$title]($($release.url))" |
+              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8

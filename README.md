@@ -117,7 +117,9 @@ GitHub Actions performs one live end-to-end download on Windows, Ubuntu, and
 macOS, using both x64 and ARM64 runners. Each job downloads the reference video
 with the matching launcher, verifies the completed file and temporary cleanup,
 and publishes an FFprobe media report in the job summary. Every job has a
-five-minute timeout.
+five-minute timeout. After every successful `Main` branch run, CI creates a
+GitHub release named with the UTC build date, time, and short commit hash. The
+release contains the Windows ZIP and Unix tar.gz archives.
 
 Build clean release archives without reading or changing the working `config.ini`:
 
