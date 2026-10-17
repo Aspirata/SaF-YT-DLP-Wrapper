@@ -8,8 +8,10 @@ config_file=$script_dir/config.ini
 
 ytdlp=$dependencies_dir/yt-dlp
 deno=$dependencies_dir/deno
-ffmpeg=$dependencies_dir/ffmpeg
-ffprobe=$dependencies_dir/ffprobe
+ffmpeg_bundle=$dependencies_dir/ffmpeg-shared
+ffmpeg=
+ffprobe=
+ffmpeg_location=
 ytdlp_new=$dependencies_dir/yt-dlp.new
 deno_new=$dependencies_dir/deno.new
 ffmpeg_new=$dependencies_dir/ffmpeg.new
@@ -56,13 +58,13 @@ select_platform() {
             platform_id=linux-x64
             ytdlp_asset=yt-dlp_linux
             deno_asset=deno-x86_64-unknown-linux-gnu.zip
-            ffmpeg_asset=ffmpeg-master-latest-linux64-gpl.tar.xz
+            ffmpeg_asset=ffmpeg-master-latest-linux64-gpl-shared.tar.xz
             ;;
         Linux:aarch64|Linux:arm64)
             platform_id=linux-arm64
             ytdlp_asset=yt-dlp_linux_aarch64
             deno_asset=deno-aarch64-unknown-linux-gnu.zip
-            ffmpeg_asset=ffmpeg-master-latest-linuxarm64-gpl.tar.xz
+            ffmpeg_asset=ffmpeg-master-latest-linuxarm64-gpl-shared.tar.xz
             ;;
         Darwin:x86_64|Darwin:amd64)
             platform_id=macos-x64
@@ -87,9 +89,15 @@ select_platform() {
     ytdlp_url=https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/$ytdlp_asset
     deno_url=https://github.com/denoland/deno/releases/latest/download/$deno_asset
     if [[ $platform_id == linux-* ]]; then
-        ffmpeg_url=https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/$ffmpeg_asset
+        ffmpeg=$ffmpeg_bundle/bin/ffmpeg
+        ffprobe=$ffmpeg_bundle/bin/ffprobe
+        ffmpeg_location=$ffmpeg_bundle/bin
+        ffmpeg_url=https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/$ffmpeg_asset
         ffprobe_url=
     else
+        ffmpeg=$dependencies_dir/ffmpeg
+        ffprobe=$dependencies_dir/ffprobe
+        ffmpeg_location=$dependencies_dir
         ffmpeg_url=https://github.com/eugeneware/ffmpeg-static/releases/latest/download/$ffmpeg_asset
         ffprobe_url=https://github.com/eugeneware/ffmpeg-static/releases/latest/download/$ffprobe_asset
     fi
@@ -100,6 +108,7 @@ print_dependency_map() {
     printf 'YTDLP_URL=%s\n' "$ytdlp_url"
     printf 'DENO_URL=%s\n' "$deno_url"
     printf 'FFMPEG_URL=%s\n' "$ffmpeg_url"
+    printf 'FFMPEG_PATH=%s\n' "$ffmpeg"
     if [[ -n $ffprobe_url ]]; then
         printf 'FFPROBE_URL=%s\n' "$ffprobe_url"
     fi
@@ -184,9 +193,9 @@ download_file() {
 }
 
 validate_ffmpeg_pair() {
-    local encoders
-    "$ffprobe_new" -version >/dev/null 2>&1 || return 1
-    encoders=$("$ffmpeg_new" -hide_banner -encoders 2>&1) || return 1
+    local ffmpeg_candidate=$1 ffprobe_candidate=$2 encoders
+    "$ffprobe_candidate" -version >/dev/null 2>&1 || return 1
+    encoders=$("$ffmpeg_candidate" -hide_banner -encoders 2>&1) || return 1
     case $encoders in *libx264*) ;; *) return 1 ;; esac
     case $encoders in *libx265*) ;; *) return 1 ;; esac
     case $encoders in *libsvtav1*|*libaom-av1*) ;; *) return 1 ;; esac
@@ -241,7 +250,7 @@ install_deno() {
 }
 
 install_ffmpeg_linux() {
-    local part unpack ffmpeg_candidate ffprobe_candidate
+    local part unpack ffmpeg_candidate ffprobe_candidate package_root runtime
     part=$setup_dir/$ffmpeg_asset.part
     unpack=$setup_dir/ffmpeg-unpack
     if ! download_file "$ffmpeg_url" "$part"; then
@@ -251,7 +260,18 @@ install_ffmpeg_linux() {
     ffmpeg_candidate=$(find "$unpack" -type f -name ffmpeg -print 2>/dev/null | sed -n '1p')
     ffprobe_candidate=$(find "$unpack" -type f -name ffprobe -print 2>/dev/null | sed -n '1p')
     [[ -n $ffmpeg_candidate && -n $ffprobe_candidate ]] || return 1
-    cp "$ffmpeg_candidate" "$ffmpeg_new" && cp "$ffprobe_candidate" "$ffprobe_new" && chmod +x "$ffmpeg_new" "$ffprobe_new"
+    [[ $(dirname "$ffmpeg_candidate") == "$(dirname "$ffprobe_candidate")" ]] || return 1
+    package_root=$(cd "$(dirname "$ffmpeg_candidate")/.." && pwd -P) || return 1
+    [[ -d $package_root/lib ]] || return 1
+    runtime=$setup_dir/ffmpeg-runtime
+    mkdir -p "$runtime/bin" "$runtime/lib" || return 1
+    cp "$ffmpeg_candidate" "$runtime/bin/ffmpeg" || return 1
+    cp "$ffprobe_candidate" "$runtime/bin/ffprobe" || return 1
+    cp -a "$package_root/lib/." "$runtime/lib/" || return 1
+    chmod +x "$runtime/bin/ffmpeg" "$runtime/bin/ffprobe" || return 1
+    validate_ffmpeg_pair "$runtime/bin/ffmpeg" "$runtime/bin/ffprobe" || return 1
+    rm -rf "$ffmpeg_bundle" || return 1
+    mv "$runtime" "$ffmpeg_bundle"
 }
 
 install_ffmpeg_macos() {
@@ -268,22 +288,27 @@ install_ffmpeg_macos() {
 install_ffmpeg() {
     printf 'Downloading FFmpeg. This is a large one-time download...\n'
     prepare_setup || return 1
-    rm -f "$ffmpeg_new" "$ffprobe_new"
     if [[ $platform_id == linux-* ]]; then
-        install_ffmpeg_linux
+        if ! install_ffmpeg_linux; then
+            cleanup_setup
+            printf 'Error: downloaded FFmpeg did not pass validation.\n' >&2
+            return 1
+        fi
     else
-        install_ffmpeg_macos
-    fi
-    if [[ $? -ne 0 ]] || ! validate_ffmpeg_pair; then
         rm -f "$ffmpeg_new" "$ffprobe_new"
-        cleanup_setup
-        printf 'Error: downloaded FFmpeg did not pass validation.\n' >&2
-        return 1
+        if ! install_ffmpeg_macos || ! validate_ffmpeg_pair "$ffmpeg_new" "$ffprobe_new"; then
+            rm -f "$ffmpeg_new" "$ffprobe_new"
+            cleanup_setup
+            printf 'Error: downloaded FFmpeg did not pass validation.\n' >&2
+            return 1
+        fi
+        if ! mv -f "$ffmpeg_new" "$ffmpeg" || ! mv -f "$ffprobe_new" "$ffprobe"; then
+            cleanup_setup
+            return 1
+        fi
     fi
-    mv -f "$ffmpeg_new" "$ffmpeg" && mv -f "$ffprobe_new" "$ffprobe"
-    local result=$?
     cleanup_setup
-    return "$result"
+    return 0
 }
 
 update_ytdlp() {
@@ -376,7 +401,7 @@ save_cookie_browser() {
 probe_cookie_source() {
     local source=$1
     "$ytdlp" --ignore-config --cookies-from-browser "$source" --js-runtimes "deno:$deno" \
-        --ffmpeg-location "$dependencies_dir" --simulate --skip-download "$URL" >/dev/null 2>&1
+        --ffmpeg-location "$ffmpeg_location" --simulate --skip-download "$URL" >/dev/null 2>&1
 }
 
 select_cookie_source() {
@@ -441,7 +466,7 @@ build_ytdlp_base() {
     if [[ -n ${cookie_source:-} ]]; then
         ytdlp_base+=(--cookies-from-browser "$cookie_source")
     fi
-    ytdlp_base+=(--js-runtimes "deno:$deno" --ffmpeg-location "$dependencies_dir")
+    ytdlp_base+=(--js-runtimes "deno:$deno" --ffmpeg-location "$ffmpeg_location")
 }
 
 # Jobs and downloads
