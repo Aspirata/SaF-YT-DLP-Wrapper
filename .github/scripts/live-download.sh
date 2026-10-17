@@ -38,7 +38,11 @@ if find internal/temp ! -path internal/temp -print -quit | grep -q .; then
     exit 1
 fi
 
-ffprobe=$repository_root/internal/dependencies/ffprobe
+if [[ $(uname -s) == Linux ]]; then
+    ffprobe=$repository_root/internal/dependencies/ffmpeg-shared/bin/ffprobe
+else
+    ffprobe=$repository_root/internal/dependencies/ffprobe
+fi
 if [[ ! -x $ffprobe ]]; then
     printf 'The wrapper did not install an executable ffprobe.\n' >&2
     exit 1

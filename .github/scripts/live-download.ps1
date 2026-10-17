@@ -44,7 +44,7 @@ if ($temporaryItems.Count -ne 0) {
     throw "Temporary data remains after the download: $($temporaryItems.FullName -join ', ')"
 }
 
-$ffprobe = Join-Path $repositoryRoot 'internal\dependencies\ffprobe.exe'
+$ffprobe = Join-Path $repositoryRoot 'internal\dependencies\ffmpeg-shared\bin\ffprobe.exe'
 if (-not (Test-Path -LiteralPath $ffprobe -PathType Leaf)) {
     throw 'The wrapper did not install ffprobe.exe.'
 }

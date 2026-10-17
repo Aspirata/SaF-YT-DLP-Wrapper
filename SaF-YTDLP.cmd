@@ -13,12 +13,12 @@ set "DOWNLOADS=%ROOT%\Downloads"
 set "CONFIG=%ROOT%\config.ini"
 set "YTDLP=%DEPENDENCIES%\yt-dlp.exe"
 set "DENO=%DEPENDENCIES%\deno.exe"
-set "FFMPEG=%DEPENDENCIES%\ffmpeg.exe"
-set "FFPROBE=%DEPENDENCIES%\ffprobe.exe"
+set "FFMPEG_BUNDLE=%DEPENDENCIES%\ffmpeg-shared"
+set "FFMPEG_BIN=%FFMPEG_BUNDLE%\bin"
+set "FFMPEG=%FFMPEG_BIN%\ffmpeg.exe"
+set "FFPROBE=%FFMPEG_BIN%\ffprobe.exe"
 set "YTDLP_NEW=%DEPENDENCIES%\yt-dlp.new.exe"
 set "DENO_NEW=%DEPENDENCIES%\deno.new.exe"
-set "FFMPEG_NEW=%DEPENDENCIES%\ffmpeg.new.exe"
-set "FFPROBE_NEW=%DEPENDENCIES%\ffprobe.new.exe"
 
 set "MAX_HEIGHT=1080"
 set "DEFAULT_MODE=video"
@@ -928,13 +928,13 @@ if /i "%WINDOWS_ARCH%"=="AMD64" (
     set "PLATFORM_ID=windows-x64"
     set "YTDLP_ASSET=yt-dlp.exe"
     set "DENO_ASSET=deno-x86_64-pc-windows-msvc.zip"
-    set "FFMPEG_ASSET=ffmpeg-master-latest-win64-gpl.zip"
+    set "FFMPEG_ASSET=ffmpeg-master-latest-win64-gpl-shared.zip"
 )
 if /i "%WINDOWS_ARCH%"=="ARM64" (
     set "PLATFORM_ID=windows-arm64"
     set "YTDLP_ASSET=yt-dlp_arm64.exe"
     set "DENO_ASSET=deno-aarch64-pc-windows-msvc.zip"
-    set "FFMPEG_ASSET=ffmpeg-master-latest-winarm64-gpl.zip"
+    set "FFMPEG_ASSET=ffmpeg-master-latest-winarm64-gpl-shared.zip"
 )
 if not defined PLATFORM_ID (
     echo Error: this wrapper supports Windows x86_64 and ARM64.
@@ -1119,26 +1119,25 @@ if errorlevel 1 (
 
 set "SAF_ARCHIVE=%SAF_DOWNLOAD_FILE%"
 set "SAF_EXTRACT_DIR=%JOB_SETUP%\ffmpeg-unpack"
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory($env:SAF_ARCHIVE,$env:SAF_EXTRACT_DIR); $ffmpeg=Get-ChildItem -LiteralPath $env:SAF_EXTRACT_DIR -Filter ffmpeg.exe -File -Recurse|Select-Object -First 1; $ffprobe=Get-ChildItem -LiteralPath $env:SAF_EXTRACT_DIR -Filter ffprobe.exe -File -Recurse|Select-Object -First 1; if(-not $ffmpeg -or -not $ffprobe){throw 'FFmpeg executables not found in archive'}; Copy-Item -LiteralPath $ffmpeg.FullName -Destination $env:FFMPEG_NEW -Force; Copy-Item -LiteralPath $ffprobe.FullName -Destination $env:FFPROBE_NEW -Force"
+set "SAF_RUNTIME_DIR=%JOB_SETUP%\ffmpeg-runtime"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory($env:SAF_ARCHIVE,$env:SAF_EXTRACT_DIR); $ffmpeg=Get-ChildItem -LiteralPath $env:SAF_EXTRACT_DIR -Filter ffmpeg.exe -File -Recurse|Select-Object -First 1; $ffprobe=Get-ChildItem -LiteralPath $env:SAF_EXTRACT_DIR -Filter ffprobe.exe -File -Recurse|Select-Object -First 1; if(-not $ffmpeg -or -not $ffprobe -or $ffmpeg.DirectoryName -ne $ffprobe.DirectoryName){throw 'FFmpeg executables not found together in archive'}; $dlls=@(Get-ChildItem -LiteralPath $ffmpeg.DirectoryName -Filter *.dll -File); if($dlls.Count -eq 0){throw 'FFmpeg shared libraries not found in archive'}; $runtimeBin=Join-Path $env:SAF_RUNTIME_DIR 'bin'; New-Item -ItemType Directory -Path $runtimeBin|Out-Null; Copy-Item -LiteralPath $ffmpeg.FullName,$ffprobe.FullName -Destination $runtimeBin; $dlls|Copy-Item -Destination $runtimeBin; $stagedFfmpeg=Join-Path $runtimeBin 'ffmpeg.exe'; $stagedFfprobe=Join-Path $runtimeBin 'ffprobe.exe'; & $stagedFfprobe -version|Out-Null; if($LASTEXITCODE -ne 0){throw 'FFprobe validation failed'}; $encoders=& $stagedFfmpeg -hide_banner -encoders|Out-String; if($LASTEXITCODE -ne 0 -or $encoders -notmatch 'libx264' -or $encoders -notmatch 'libx265' -or $encoders -notmatch 'libsvtav1'){throw 'FFmpeg encoder validation failed'}"
 if errorlevel 1 (
-    del /q "%FFMPEG_NEW%" "%FFPROBE_NEW%" >nul 2>&1
     call :cleanup_setup_job
     echo Error: could not extract FFmpeg.
     exit /b 1
 )
-call "%FFPROBE_NEW%" -version >nul 2>&1
+if exist "%FFMPEG_BUNDLE%" rmdir /s /q "%FFMPEG_BUNDLE%" >nul 2>&1
+move /y "%SAF_RUNTIME_DIR%" "%FFMPEG_BUNDLE%" >nul
 if errorlevel 1 goto :install_ffmpeg_invalid
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$text=& $env:FFMPEG_NEW -hide_banner -encoders|Out-String; if($LASTEXITCODE -ne 0 -or $text -notmatch 'libx264' -or $text -notmatch 'libx265' -or $text -notmatch 'libsvtav1'){exit 1}" >nul 2>&1
+call "%FFPROBE%" -version >nul 2>&1
 if errorlevel 1 goto :install_ffmpeg_invalid
-move /y "%FFMPEG_NEW%" "%FFMPEG%" >nul
-if errorlevel 1 goto :install_ffmpeg_invalid
-move /y "%FFPROBE_NEW%" "%FFPROBE%" >nul
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$text=& $env:FFMPEG -hide_banner -encoders|Out-String; if($LASTEXITCODE -ne 0 -or $text -notmatch 'libx264' -or $text -notmatch 'libx265' -or $text -notmatch 'libsvtav1'){exit 1}" >nul 2>&1
 if errorlevel 1 goto :install_ffmpeg_invalid
 call :cleanup_setup_job
 exit /b 0
 
 :install_ffmpeg_invalid
-del /q "%FFMPEG_NEW%" "%FFPROBE_NEW%" >nul 2>&1
+if exist "%FFMPEG_BUNDLE%" rmdir /s /q "%FFMPEG_BUNDLE%" >nul 2>&1
 call :cleanup_setup_job
 echo Error: downloaded FFmpeg did not pass validation.
 exit /b 1
@@ -1169,6 +1168,7 @@ echo PLATFORM=%PLATFORM_ID%
 echo YTDLP_URL=%YTDLP_URL%
 echo DENO_URL=%DENO_URL%
 echo FFMPEG_URL=%FFMPEG_URL%
+echo FFMPEG_PATH=%FFMPEG%
 exit /b 0
 
 :fatal
