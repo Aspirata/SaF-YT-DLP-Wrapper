@@ -14,16 +14,11 @@ if "%~2"=="" (
 )
 
 set "SYSTEM_TAR=%SystemRoot%\System32\tar.exe"
-set "CERTUTIL=%SystemRoot%\System32\certutil.exe"
 set "POWERSHELL=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 set "UNIX_ARCHIVE_BUILDER=%~dp0build-unix-release.ps1"
 
 if not exist "%SYSTEM_TAR%" (
     set "ERROR_MESSAGE=The Windows system tar.exe is required to create the ZIP archive."
-    goto :Failure
-)
-if not exist "%CERTUTIL%" (
-    set "ERROR_MESSAGE=The Windows system certutil.exe is required to create the Unix release configuration."
     goto :Failure
 )
 if not exist "%POWERSHELL%" (
@@ -35,7 +30,7 @@ if not exist "%UNIX_ARCHIVE_BUILDER%" (
     goto :Failure
 )
 
-for %%F in (README.md LICENSE SaF-YTDLP.cmd SaF-YTDLP.sh) do (
+for %%F in (README.md LICENSE SaF-YTDLP.cmd SaF-YTDLP.sh config.default.ini) do (
     if not exist "%SOURCE_ROOT%\%%F" (
         set "ERROR_MESSAGE=Required release file is missing: %%F"
         goto :Failure
@@ -77,31 +72,12 @@ if errorlevel 1 goto :CopyFailure
 copy /y "%SOURCE_ROOT%\SaF-YTDLP.sh" "%UNIX_STAGE%\SaF-YTDLP.sh" >nul
 if errorlevel 1 goto :CopyFailure
 
->"%WINDOWS_STAGE%\config.ini" (
-    echo PROFILE=MODERN
-    echo MAX_HEIGHT=1080
-    echo DEFAULT_MODE=video
-    echo TRANSCODE_VP9_TO_AV1=YES
-    echo ALLOW_HARDWARE_TRANSCODING=YES
-    echo STORE_OPUS_IN_MP4=YES
-    echo DOWNLOAD_ALL_AUDIO_TRACKS=YES
-    echo COOKIE_BROWSER=
-)
+copy /y "%SOURCE_ROOT%\config.default.ini" "%WINDOWS_STAGE%\config.ini" >nul
 if errorlevel 1 (
     set "ERROR_MESSAGE=Could not create the Windows release configuration."
     goto :Failure
 )
->"%STAGING%\config.hex" (
-    echo 50 52 4F 46 49 4C 45 3D 4D 4F 44 45 52 4E 0A 4D 41 58 5F 48 45 49 47 48
-    echo 54 3D 31 30 38 30 0A 44 45 46 41 55 4C 54 5F 4D 4F 44 45 3D 76 69 64 65
-    echo 6F 0A 54 52 41 4E 53 43 4F 44 45 5F 56 50 39 5F 54 4F 5F 41 56 31 3D 59
-    echo 45 53 0A 41 4C 4C 4F 57 5F 48 41 52 44 57 41 52 45 5F 54 52 41 4E 53 43
-    echo 4F 44 49 4E 47 3D 59 45 53 0A 53 54 4F 52 45 5F 4F 50 55 53 5F 49 4E 5F
-    echo 4D 50 34 3D 59 45 53 0A 44 4F 57 4E 4C 4F 41 44 5F 41 4C 4C 5F 41 55 44
-    echo 49 4F 5F 54 52 41 43 4B 53 3D 59 45 53 0A 43 4F 4F 4B 49 45 5F 42 52 4F
-    echo 57 53 45 52 3D 0A
-)
-"%CERTUTIL%" -f -decodehex "%STAGING%\config.hex" "%UNIX_STAGE%\config.ini" 12 >nul 2>&1
+copy /y "%SOURCE_ROOT%\config.default.ini" "%UNIX_STAGE%\config.ini" >nul
 if errorlevel 1 (
     set "ERROR_MESSAGE=Could not create the Unix release configuration."
     goto :Failure

@@ -36,6 +36,18 @@ try {
 
     $personalConfig = "PROFILE=QUALITY`nCOOKIE_BROWSER=firefox`n"
     Set-Content -LiteralPath (Join-Path $fixtureRoot 'config.ini') -Value $personalConfig -NoNewline -Encoding ascii
+    $releaseConfig = @(
+        'PROFILE=MODERN'
+        'MAX_HEIGHT=720'
+        'DEFAULT_MODE=audio'
+        'TRANSCODE_VP9_TO_AV1=YES'
+        'ALLOW_HARDWARE_TRANSCODING=NO'
+        'STORE_OPUS_IN_MP4=YES'
+        'DOWNLOAD_ALL_AUDIO_TRACKS=YES'
+        'COOKIE_BROWSER='
+        ''
+    ) -join "`n"
+    Set-Content -LiteralPath (Join-Path $fixtureRoot 'config.default.ini') -Value $releaseConfig -NoNewline -Encoding ascii
 
     $env:Path = "$env:SystemRoot\System32;$env:SystemRoot"
     $env:ProgramFiles = $emptyTools
@@ -73,21 +85,10 @@ try {
     $archivedLauncherHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $unixExtract 'SaF-YTDLP.sh')).Hash
     Assert-True ($archivedLauncherHash -eq $sourceLauncherHash) 'The Unix launcher content or LF line endings changed while it was archived.'
 
-    $expectedReleaseConfig = @(
-        'PROFILE=MODERN'
-        'MAX_HEIGHT=1080'
-        'DEFAULT_MODE=video'
-        'TRANSCODE_VP9_TO_AV1=YES'
-        'ALLOW_HARDWARE_TRANSCODING=YES'
-        'STORE_OPUS_IN_MP4=YES'
-        'DOWNLOAD_ALL_AUDIO_TRACKS=YES'
-        'COOKIE_BROWSER='
-    ) -join "`n"
-
     $windowsConfig = (Get-Content -Raw -LiteralPath (Join-Path $windowsExtract 'config.ini')) -replace "`r`n", "`n"
     $unixConfig = (Get-Content -Raw -LiteralPath (Join-Path $unixExtract 'config.ini')) -replace "`r`n", "`n"
-    Assert-True ($windowsConfig.TrimEnd("`r", "`n") -eq $expectedReleaseConfig) 'The Windows archive contains the wrong release configuration.'
-    Assert-True ($unixConfig.TrimEnd("`r", "`n") -eq $expectedReleaseConfig) 'The Unix archive contains the wrong release configuration.'
+    Assert-True ($windowsConfig -eq $releaseConfig) 'The Windows archive does not contain the release template configuration.'
+    Assert-True ($unixConfig -eq $releaseConfig) 'The Unix archive does not contain the release template configuration.'
 
     $fixtureConfig = (Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'config.ini')) -replace "`r`n", "`n"
     Assert-True ($fixtureConfig -eq $personalConfig) 'The release build changed the working configuration.'

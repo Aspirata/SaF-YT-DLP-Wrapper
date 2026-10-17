@@ -37,6 +37,9 @@ jobs:
       SAF_EXPECTED_ARCH: ${{ matrix.architecture }}
     steps:
       - uses: actions/checkout@v4
+      - name: Reset configuration to defaults
+        shell: pwsh
+        run: Copy-Item -LiteralPath config.default.ini -Destination config.ini -Force
       - name: Download and inspect video
         if: runner.os == 'Windows'
         shell: powershell

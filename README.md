@@ -53,7 +53,7 @@ Software video encoding uses two-pass VBR. Hardware encoding uses one pass. The 
 
 ## Configuration
 
-Edit `config.ini` in a text editor:
+Edit `config.ini` in a text editor. The default settings are stored in `config.default.ini`:
 
 ```ini
 PROFILE=MODERN
@@ -70,6 +70,8 @@ COOKIE_BROWSER=
 - `DEFAULT_MODE` accepts `video`, `audio`, or `thumbnail`.
 - `STORE_OPUS_IN_MP4=YES` stores Quality audio-only Opus in MP4 for applications that do not accept `.opus` or `.mka`.
 - `COOKIE_BROWSER` is filled automatically after a browser cookie source works. Leave it empty to start with automatic detection.
+
+CI resets `config.ini` from `config.default.ini` before each live download test. Release archives also contain this default configuration, while a local `config.ini` is left untouched during the build.
 
 Invalid profile, mode, number, or YES/NO values stop the program before downloading.
 
