@@ -20,7 +20,7 @@
 
 ## What is this program for?
 
-SaF is a portable, interactive wrapper around **yt-dlp** for downloading YouTube videos and playlists. Paste a URL, choose video, audio only, or a thumbnail, and find the result in `Downloads`. The wrapper fetches its own yt-dlp, Deno, FFmpeg, and FFprobe copies and handles format selection and file assembly for you.
+SaF is a portable, interactive wrapper around **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** for downloading YouTube videos and playlists. Paste a URL, choose video, audio only, or a thumbnail, and find the result in `Downloads`. The wrapper fetches its own yt-dlp, Deno, [FFmpeg](https://ffmpeg.org/), and FFprobe copies and handles format selection and file assembly for you.
 
 - **Compared with a basic video downloader:** you get audio tracks for every available language, chapters and metadata, plus codec and compatibility profiles. `QUALITY` can preserve the source streams when VP9 conversion is disabled.
 - **Compared with running yt-dlp directly:** you do not have to install its dependencies yourself or work out format-selection and FFmpeg options. The simple menu covers everyday downloads; `config.ini` exposes the advanced choices.
