@@ -30,7 +30,7 @@ if not exist "%UNIX_ARCHIVE_BUILDER%" (
     goto :Failure
 )
 
-for %%F in (README.md LICENSE SaF-YTDLP.cmd SaF-YTDLP.sh config.default.ini) do (
+for %%F in (README.md README.ru.md LICENSE SaF-YTDLP.cmd SaF-YTDLP.sh config.default.ini docs\menu-preview.svg docs\menu-preview.ru.svg) do (
     if not exist "%SOURCE_ROOT%\%%F" (
         set "ERROR_MESSAGE=Required release file is missing: %%F"
         goto :Failure
@@ -61,10 +61,18 @@ if not exist "%OUTPUT_DIRECTORY%" (
     goto :Failure
 )
 
-for %%F in (README.md LICENSE) do (
+for %%F in (README.md README.ru.md LICENSE) do (
     copy /y "%SOURCE_ROOT%\%%F" "%WINDOWS_STAGE%\%%F" >nul
     if errorlevel 1 goto :CopyFailure
     copy /y "%SOURCE_ROOT%\%%F" "%UNIX_STAGE%\%%F" >nul
+    if errorlevel 1 goto :CopyFailure
+)
+md "%WINDOWS_STAGE%\docs" "%UNIX_STAGE%\docs" >nul 2>&1
+if errorlevel 1 goto :CopyFailure
+for %%F in (menu-preview.svg menu-preview.ru.svg) do (
+    copy /y "%SOURCE_ROOT%\docs\%%F" "%WINDOWS_STAGE%\docs\%%F" >nul
+    if errorlevel 1 goto :CopyFailure
+    copy /y "%SOURCE_ROOT%\docs\%%F" "%UNIX_STAGE%\docs\%%F" >nul
     if errorlevel 1 goto :CopyFailure
 )
 copy /y "%SOURCE_ROOT%\SaF-YTDLP.cmd" "%WINDOWS_STAGE%\SaF-YTDLP.cmd" >nul
@@ -85,7 +93,7 @@ if errorlevel 1 (
 
 del /q "%WINDOWS_ARCHIVE%" "%UNIX_ARCHIVE%" >nul 2>&1
 
-"%SYSTEM_TAR%" -acf "%WINDOWS_ARCHIVE%" -C "%WINDOWS_STAGE%" SaF-YTDLP.cmd config.ini README.md LICENSE
+"%SYSTEM_TAR%" -acf "%WINDOWS_ARCHIVE%" -C "%WINDOWS_STAGE%" SaF-YTDLP.cmd config.ini README.md README.ru.md LICENSE docs/menu-preview.svg docs/menu-preview.ru.svg
 if errorlevel 1 (
     set "ERROR_MESSAGE=Could not create the Windows release archive."
     goto :Failure

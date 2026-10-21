@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="360" viewBox="0 0 1000 360" role="img" aria-labelledby="title desc">
+  <title id="title">Пример меню SaF yt-dlp Wrapper</title>
+  <desc id="desc">Вставьте ссылку на YouTube, затем нажмите Enter для выбора видео по умолчанию.</desc>
+  <rect width="1000" height="360" rx="18" fill="#0d1117"/>
+  <rect x="1" y="1" width="998" height="358" rx="17" fill="none" stroke="#30363d" stroke-width="2"/>
+  <path d="M18 1h964a17 17 0 0 1 17 17v42H1V18A17 17 0 0 1 18 1Z" fill="#161b22"/>
+  <path d="M1 60h998" stroke="#30363d"/>
+  <circle cx="31" cy="31" r="7" fill="#f85149"/>
+  <circle cx="55" cy="31" r="7" fill="#d29922"/>
+  <circle cx="79" cy="31" r="7" fill="#3fb950"/>
+  <text x="500" y="37" text-anchor="middle" fill="#8b949e" font-family="Consolas, 'Liberation Mono', monospace" font-size="17">SaF yt-dlp Wrapper — пример меню</text>
+  <g font-family="Consolas, 'Liberation Mono', monospace" font-size="21">
+    <text x="44" y="113" fill="#e6edf3">Paste video or playlist URL (blank to exit):</text>
+    <text x="44" y="143" fill="#58a6ff">https://www.youtube.com/watch?v=...</text>
+    <text x="44" y="192" fill="#e6edf3">Download:</text>
+    <text x="66" y="224" fill="#3fb950">1. Video</text>
+    <text x="66" y="256" fill="#c9d1d9">2. Audio only</text>
+    <text x="66" y="288" fill="#c9d1d9">3. Thumbnail only</text>
+    <text x="44" y="333" fill="#e6edf3">Select [Video]:</text>
+    <rect x="242" y="313" width="13" height="23" fill="#3fb950"/>
+  </g>
+  <rect x="723" y="183" width="223" height="97" rx="11" fill="#13231a" stroke="#238636"/>
+  <text x="744" y="213" fill="#3fb950" font-family="Consolas, 'Liberation Mono', monospace" font-size="17" font-weight="bold">ПО УМОЛЧАНИЮ</text>
+  <text x="744" y="240" fill="#e6edf3" font-family="Consolas, 'Liberation Mono', monospace" font-size="16">до 1080p</text>
+  <text x="744" y="264" fill="#e6edf3" font-family="Consolas, 'Liberation Mono', monospace" font-size="16">может перекодировать</text>
+</svg>

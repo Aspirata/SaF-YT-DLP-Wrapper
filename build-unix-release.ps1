@@ -84,7 +84,10 @@ $entries = @(
     @{ Name = 'SaF-YTDLP.sh'; Mode = 493 }
     @{ Name = 'config.ini'; Mode = 420 }
     @{ Name = 'README.md'; Mode = 420 }
+    @{ Name = 'README.ru.md'; Mode = 420 }
     @{ Name = 'LICENSE'; Mode = 420 }
+    @{ Name = 'docs/menu-preview.svg'; Mode = 420 }
+    @{ Name = 'docs/menu-preview.ru.svg'; Mode = 420 }
 )
 
 foreach ($entry in $entries) {

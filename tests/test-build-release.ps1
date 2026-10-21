@@ -30,8 +30,12 @@ try {
     $emptyTools = Join-Path $testRoot 'empty tools'
     New-Item -ItemType Directory -Path $emptyTools | Out-Null
 
-    foreach ($name in @('README.md', 'LICENSE', 'SaF-YTDLP.cmd', 'SaF-YTDLP.sh')) {
+    foreach ($name in @('README.md', 'README.ru.md', 'LICENSE', 'SaF-YTDLP.cmd', 'SaF-YTDLP.sh')) {
         Copy-Item -LiteralPath (Join-Path $repositoryRoot $name) -Destination (Join-Path $fixtureRoot $name)
+    }
+    New-Item -ItemType Directory -Path (Join-Path $fixtureRoot 'docs') | Out-Null
+    foreach ($name in @('menu-preview.svg', 'menu-preview.ru.svg')) {
+        Copy-Item -LiteralPath (Join-Path $repositoryRoot "docs/$name") -Destination (Join-Path $fixtureRoot "docs/$name")
     }
 
     $personalConfig = "PROFILE=QUALITY`nCOOKIE_BROWSER=firefox`n"
@@ -64,8 +68,8 @@ try {
     Assert-True (Test-Path -LiteralPath $windowsArchive) 'The Windows release archive was not created.'
     Assert-True (Test-Path -LiteralPath $unixArchive) 'The Unix release archive was not created.'
 
-    $expectedWindowsEntries = 'config.ini|LICENSE|README.md|SaF-YTDLP.cmd'
-    $expectedUnixEntries = 'config.ini|LICENSE|README.md|SaF-YTDLP.sh'
+    $expectedWindowsEntries = 'config.ini|docs/menu-preview.ru.svg|docs/menu-preview.svg|LICENSE|README.md|README.ru.md|SaF-YTDLP.cmd'
+    $expectedUnixEntries = 'config.ini|docs/menu-preview.ru.svg|docs/menu-preview.svg|LICENSE|README.md|README.ru.md|SaF-YTDLP.sh'
     $windowsEntries = @(& "$env:SystemRoot\System32\tar.exe" -tf $windowsArchive | ForEach-Object { ($_ -replace '\\', '/') -replace '^\./', '' } | Sort-Object) -join '|'
     $unixEntries = @(& "$env:SystemRoot\System32\tar.exe" -tf $unixArchive | ForEach-Object { ($_ -replace '\\', '/') -replace '^\./', '' } | Sort-Object) -join '|'
     Assert-True ($windowsEntries -eq $expectedWindowsEntries) "Unexpected Windows archive entries: $windowsEntries"
@@ -84,6 +88,14 @@ try {
     $sourceLauncherHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $fixtureRoot 'SaF-YTDLP.sh')).Hash
     $archivedLauncherHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $unixExtract 'SaF-YTDLP.sh')).Hash
     Assert-True ($archivedLauncherHash -eq $sourceLauncherHash) 'The Unix launcher content or LF line endings changed while it was archived.'
+
+    foreach ($name in @('README.md', 'README.ru.md', 'docs/menu-preview.svg', 'docs/menu-preview.ru.svg')) {
+        $sourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $fixtureRoot $name)).Hash
+        foreach ($extracted in @($windowsExtract, $unixExtract)) {
+            $archiveHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $extracted $name)).Hash
+            Assert-True ($archiveHash -eq $sourceHash) "The README asset $name was not packaged intact."
+        }
+    }
 
     $windowsConfig = (Get-Content -Raw -LiteralPath (Join-Path $windowsExtract 'config.ini')) -replace "`r`n", "`n"
     $unixConfig = (Get-Content -Raw -LiteralPath (Join-Path $unixExtract 'config.ini')) -replace "`r`n", "`n"
